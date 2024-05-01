@@ -28,6 +28,9 @@
 \usepackage{mathtools}
 %\usepackage{tcolorbox}
 \usepackage{xcolor}
+\usepackage{amsmath}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
 
 \usepackage{bbm} %for indicators 1
 
@@ -48,9 +51,9 @@
 
 
 \newtheorem{Def}{Определение}[section]
+\newtheorem{proposition}{Предположение}
 
-
-\title{Оптимальные методы оптимизации первого порядка с относительным шумом}
+\title{Жадные методы оптимизации первого порядка с относительным шумом}
 
 \author{
 	Рубцов Денис \\
@@ -77,73 +80,78 @@
 }
 \date{}
 
-\renewcommand{\shorttitle}{Оптимальные методы оптимизации первого порядка с относительным шумом}
+\renewcommand{\shorttitle}{Жадные методы оптимизации первого порядка с относительным шумом}
 \renewcommand{\undertitle}{}
 %%% Add PDF metadata to help others organize their library
 %%% Once the PDF is generated, you can check the metadata with
 %%% $ pdfinfo template.pdf
 \hypersetup{
-pdftitle={Оптимальные методы оптимизации первого порядка с относительным шумом},
+pdftitle={Жадные методы оптимизации первого порядка с относительным шумом},
 pdfsubject={Методы оптимизации первого порядка},
 pdfauthor={Рубцов Д.Н., Корнилов Н.М.},
-pdfkeywords={методы оптимизации первого порядка, ускоренные методы, неточный градиент, относительный шум, Performance Estimation Problem, сходимость, машинное обучение},
+pdfkeywords={методы оптимизации первого порядка, жадные методы, неточный градиент, относительный шум, Performance Estimation Problem, машинное обучение},
 }
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Работа посвящена ускоренным методам гладкой выпуклой оптимизации первого порядка с градиентами, известными лишь с некоторой относительной погрешностью. Проведен обзор полученных ранее теоретических результатов об оценках максимально допустимой погрешности, сохраняющей линейную сходимость методов. С помощью анализа численного решения эквивалентной задачи полуопределенного программирования (техника PEP) показана достижимость этих оценок.
+Работа посвящена жадным методам гладкой выпуклой оптимизации первого порядка с градиентами, известными лишь с некоторой относительной погрешностью. С помощью численной техники PEP была получена эмпирическая гипотеза о влиянии этой погрешности на скорость сходимости методов. 
 
 \end{abstract}
 
 
-\keywords{методы оптимизации первого порядка, ускоренные методы, неточный градиент, относительный шум, Performance Estimation Problem, сходимость, машинное обучение}
+\keywords{методы оптимизации первого порядка, жадные методы, неточный градиент, относительный шум, Performance Estimation Problem, машинное обучение}
 
 \section{\textbf{Введение}}
 
-В данной статье изучаются методы гладкой выпуклой оптимизации первого порядка. Их изучение актуально в связи с высоким успехом их применения во многих приложениях, в том числе в машинном обучении (см., например, в \cite{bottou2007tradeoffs}). При этом во многих ситуациях алгоритмы не имеют доступа к точной информации о градиенте. Так, например, бывает, когда для того, чтобы получить значение градиента, требуется решить другую сложную задачу (например, решить дифференциальное уравнение, см. в \cite{matyukhin2021convex}). В данной статье мы сосредоточимся на ситуации, когда градиенты известны с некоторой относительной погрешностью $\varepsilon \in [0, 1]$ $$\|\widetilde{\nabla} f(x) - \nabla f(x)\|_2 \leq \varepsilon \|\nabla f(x)\|_2$$
+В данной статье изучаются методы гладкой выпуклой оптимизации первого порядка. Их изучение актуально в связи с высоким успехом их применения во многих приложениях, в том числе в машинном обучении (см., например, в \cite{bottou2007tradeoffs}). Эти методы (например, Adam \cite{kingma2014adam}) позволяют улучшить процесс обучения, что делает их особенно важными для решения сложных задач. 
 
+Во многих ситуациях алгоритмы не имеют доступа к точной информации о градиенте. Так, например, бывает, когда для того, чтобы получить значение градиента, требуется решить другую сложную задачу (например, решить дифференциальное уравнение, см. в \cite{matyukhin2021convex}). В данной статье мы сосредоточимся на ситуации, когда градиенты известны с некоторой относительной погрешностью $\varepsilon \in [0, 1]$: $$\|\widetilde{\nabla} f(x) - \nabla f(x)\|_2 \leq \varepsilon \|\nabla f(x)\|_2.$$
+Часто доказательства скорости сходимости методов оптимизации носят неинтуитивный, техничный характер. Они представляют собой цепочку длинных нетривиальных неравенств, оценивающих наихудший случай. Численное решение задачи поиска наихудшего случая может быть осуществлено с помощью техники Performance Estimation Problem (далее -- PEP, см. в \cite{goujaud2022pepit}, \cite{taylor2017smooth}, \cite{taylor2017convex}), которая применяется с этой целью и в данной статье.
 
-\subsection{\textbf{Определения и обозначения}}
+\subsection{Определения и обозначения}
+
 
 \begin{table}[h!]
+\caption{Список обозначений, используемых в работе}
 \centering
  \begin{tabular}{||p{2 cm} | p{8cm}||} 
  \hline
 
- $\mathcal{F}$ & некоторый класс функций  \\ 
+ $\mathcal{F}_{\mu, L}$ & Класс $\mu$-сильно выпуклых $L$-гладких функций  \\ 
  \hline
- $\mathcal{F}_{\mu, L}$ & класс $\mu$-сильно выпуклых $L$-гладких функций  \\ 
+ $f$ & Исследуемая функция  \\
  \hline
- $f$ & исследуемая функция  \\
+ $x_{\star}$ & Точка минимума  \\
  \hline
- $x_{\star}$ & точка минимума  \\
+ $x_0$ & Начальная точка  \\
  \hline
- $x_0$ & начальная точка  \\
+ $k$ & Номер текущей итерации алгоритма  \\
  \hline
- $k$ & номер текущей итерации  \\
+ $N$ & Полное число итераций алгоритма \\
  \hline
- $N$ & полное число итераций  \\
+ $\mathcal{O}^{(f)}$ & Ответ оракула  \\ 
  \hline
- $\mathcal{O}^{(f)}$ & ответ оракула  \\ 
+ $\mathcal{A}$ & Алгоритм (правило генерации последовательностей $(x_k)_{k \le N}$ приближений точки минимума $x_{\star}$ функции $f$) \\
  \hline
- $\mathcal{A}$ & алгоритм  \\
- \hline
- $(x_k)_{k \le N}$ & последовательность точек  \\
- \hline
- $P(f, (x_k)_{k \le N})$ & метрика точности  \\[1ex] 
+ $(x_k)_{k \le N}$ & Последовательность точек  \\[1ex] 
  \hline
  \end{tabular}
 \end{table}
 
 
 \begin{Def}
-\textbf{Скалярное произведение} элементов $x,y \in \R^n$ : $\langle x,y \rangle := \sum\limits_{k=1}^n x_ky_k$.
+\textbf{Скалярное произведение} векторов $x,y \in \R^n$ : $\langle x,y \rangle := \sum\limits_{k=1}^n x_ky_k$.
 \end{Def}
 
 \begin{Def}
-$\ell_2$-норма элемента $x \in \R^n$ : $\|x\|_2 := \left(\sum\limits_{k=1}^n x_k^2\right)^{1/2}$.
+$\ell_2$-норма элемента $x \in \R^n$ : $\|x\|_2 := \langle x, x \rangle 
+ = \left(\sum\limits_{k=1}^n x_k^2\right)^{1/2}$.
+\end{Def}
+
+\begin{Def}
+Линейной оболочкой векторов $v_1, ..., v_N \in \mathbb{R}^n$ называется множество всех их линейных комбинаций $\alpha_1 v_1 + ... + \alpha_N v_N \in \mathbb{R}^n$. Обозначение - $\text{span}\{v_1, ..., v_N\}$.
 \end{Def}
 
 \begin{Def}
@@ -174,7 +182,7 @@ $\ell_2$-норма элемента $x \in \R^n$ : $\|x\|_2 := \left(\sum\limit
 \begin{Def} \label{inexact_grad}
 Будем говорить, что мы имеем доступ к градиенту функции $f$ с некоторой относительной погрешностью $\varepsilon \in [0, 1]$, если
 \begin{equation}\label{eq_relative_error}
-    \|\widetilde{\nabla} f(x) - \nabla f(x)\|_2 \leq \varepsilon\|\nabla f(x)\|_2, \quad.
+    \|\widetilde{\nabla} f(x) - \nabla f(x)\|_2 \leq \varepsilon\|\nabla f(x)\|_2 \ \forall x \in \mathbb{R}^n.
 \end{equation}
 Здесь $\nabla f(x)$ -- точное значение градиента функции $f$ в точке $x$, а $\widetilde{\nabla} f(x)$ - доступное нам зашумленное значение градиента.
 \end{Def}
@@ -183,30 +191,28 @@ $\ell_2$-норма элемента $x \in \R^n$ : $\|x\|_2 := \left(\sum\limit
 %Класс всех $L$-гладких, $\mu$-сильно выпуклых функций будем обозначать $\mathcal{F}_{\mu, L}$. Класс всех $L$-гладких, выпуклых функций будем обозначать $\mathcal{F}_{0, L}$
 %\end{Def}
 
-\subsection{Жадный метод оптимизации первого порядка GFOM}
+\subsection{Жадный метод оптимизации первого порядка (GFOM)}
 
 
 
-Классические методы оптимизации первого порядка включают в себя градиентный спуск (GD, \cite{cauchy1847methode}), метод тяжелого шарика Б.Т.Поляка (HB, \cite{polyak1963gradient}) и ускоренный метод Ю.Е.Нестерова (NAG, \cite{nesterov1983method}). Так, итерация метода градиентного спуска записывается в следующем виде.
-\[x_{k+1}  = x_k - \alpha \nabla f(x_k) \tag{GD}\]
+Классические методы оптимизации первого порядка включают в себя градиентный спуск (GD, \cite{cauchy1847methode}), метод тяжелого шарика Б.Т.Поляка (HB, \cite{polyak1963gradient}) и ускоренный метод Ю.Е.Нестерова (NAG, \cite{nesterov1983method}). Так, итерация метода градиентного спуска записывается в следующем виде:
+\[x_{k+1}  = x_k - \alpha \nabla f(x_k). \tag{GD}\]
 Итерация метода тяжелого шарика:
-\[x_{k+1} = x_k - \alpha \nabla f(x_k) + \beta (x_k - x_{k - 1})\tag{HB}\]
+\[x_{k+1} = x_k - \alpha \nabla f(x_k) + \beta (x_k - x_{k - 1}).\tag{HB}\]
 
-В каждом из этих методов результат $k$-ой итерации $x_k$ линейно выражается через результаты предыдущих итераций $(x_s)_{s < k}$ и предыдущие ответы оракула $(\mathcal{O}^{(f)}(x_s))_{s < k}$ (в случае методов оптимизации первого порядка ответы оракула - это градиенты $\mathcal{O}^{(f)}(x) = \nabla f(x)$ или неточные градиенты $\mathcal{O}^{(f)}(x) = \widetilde{\nabla} f(x)$).
+В каждом из этих методов результат $k$-ой итерации $x_k$ линейно выражается через результаты предыдущих итераций $(x_s)_{s < k}$ и предыдущие ответы оракула $(\mathcal{O}^{(f)}(x_s))_{s < k}$. Напомним, что в случае методов оптимизации первого порядка ответы оракула - это градиенты $\mathcal{O}^{(f)}(x) = \nabla f(x)$ или неточные градиенты $\mathcal{O}^{(f)}(x) = \widetilde{\nabla} f(x)$).
 
 Так и жадный метод оптимизации первого порядка (Greedy first-order method GFOM, см. в \cite{drori2020efficient}) результат $k$-ой итерации $x_k$ выражает через начальную точку $x_0$ и через градиенты на предыдущих шагах $(\mathcal{O}^{(f)}(x_s))_{s < k}$
-\[x_k = \arg\min_{x \in \mathbf{R}}\{f(x): x \in x_0 + \text{span}\{\ \nabla f(x_0), ..., \nabla f(x_{k-1})\}\} \tag{GFOM}\]
-Таким образом, на каждой итерации GFOM жадно находит оптимальную линейную комбинацию градиентов функции в точках, полученных на предыдущих итерациях.
-
-В данной работе будет исследоваться метод GFOM, в котором мы имеем доступ к градиентам лишь с относительной погрешностью.
-\[x_k = \arg\min_{x \in \mathbf{R}}\{f(x): x \in x_0 + \text{span}\{\ \widetilde{\nabla} f(x_0), ..., \widetilde{\nabla} f(x_{k-1})\}\} \tag{NoisyGFOM}\]
+\[x_k = \argmin_{x \in \mathbb{R}^n}\{f(x): x \in x_0 + \text{span}\{\ \nabla f(x_0), ..., \nabla f(x_{k-1})\}\} \tag{GFOM}\]
+Таким образом, на каждой итерации GFOM жадно находит оптимальную линейную комбинацию градиентов функции в точках, полученных на предыдущих итерациях. Оптимальность здесь имеется ввиду в смысле минимальности значения функции на этой комбинации.  
 
 
-\subsection{Performance Estimation Problem (PEP)}
+
+%\subsection{Performance Estimation Problem (PEP)}
 
 %Особое место в данной статье отведено технике Performance Estimation Problem (далее -- PEP, см. в \cite{goujaud2022pepit}, \cite{taylor2017smooth}, \cite{taylor2017convex}). С помощью этого инструмента исследования в данной статье демонстрируется точность полученной ранее в статье \cite{kornilov2023intermediate} теоретической оценки максимальной погрешности, сохраняющей сходимость метода ISTM. Более того, с помощью этой техники проводится поиск оптимальных методов первого порядка, основанных на принципе жадных алгоритмов (\cite{goujaud2023fundamental}, \cite{kim2018generalizing}). 
 
-Часто доказательства скорости сходимости методов оптимизации носят неинтуитивный, техничный характер. Они представляют собой цепочку длинных нетривиальных неравенств, оценивающих наихудший случай. Если сразу задаться поиском этого наихудшего случая, то мы придем к бесконечномерной задаче оптимизации на некотором классе функций (например, на $\mathcal{F}_{\mu, L}$). Оказывается, однако, что с помощью плодотворных идей интерполяции (\cite{taylor2017smooth}), такую задачу можно свести к конечномерной задаче полуопределенного программирования (semidefinite programming, далее -- SDP). Эта техника называется Performance Estimation Problem (далее -- PEP, см. в \cite{goujaud2022pepit}, \cite{taylor2017smooth}, \cite{taylor2017convex}). Используемые солверы - PEPit (\cite{goujaud2022pepit}) и Mosek(\cite{aps2019mosek}).
+
 
 %\subsection{Intermediate Similar Triangle Method with Relative Noise in Gradient}
 
@@ -236,42 +242,54 @@ caption{ Intermediate  Similar Triangle Method (\texttt{ISTM}).}\label{alg_STM_r
 \section{Постановка задачи}
 Мы решаем задачу безусловной оптимизации 
 \begin{equation} \label{opt_problem}
-    x_{\star} = \arg \min_{x \in \mathbf{R}^n} f(x)
+    x_{\star} = \arg \min_{x \in \mathbb{R}^n} f(x)
 \end{equation}
 
-Функция $f(x) \in \mathcal{F}_{\mu, L}$ 
-Мы имеем доступ к оракулу первого порядка, предоставляющему информацию о приближенном значении градиента $\mathcal{O}^{(f)} (x) = \widetilde{\nabla} f(x)$. 
+Функция $f(x) \in \mathcal{F}_{\mu, L}$.
 
-Данную задачу мы будем решать жадным методом NoiseGFOM. Интерес представляет скорость сходимости данного метода. Исследование сходимости мы будем проводить с помощью анализа наихудшего случая, то есть решая следующую задачу:
+Эту задачу будем решать модифицированной версией (NoisyGFOM) метода GFOM, в которой мы имеем доступ к градиентам лишь с относительной погрешностью.
+\[x_k = \argmin_{x \in \mathbb{R}^n}\{f(x): x \in x_0 + \text{span}\{\ \widetilde{\nabla} f(x_0), ..., \widetilde{\nabla} f(x_{k-1})\}\} \tag{NoisyGFOM}\]
+
+Интерес представляет скорость сходимости данного метода. Исследование сходимости мы будем проводить с помощью анализа наихудшего случая, то есть решая следующую задачу:
 \begin{equation}
     \max_{f \in \mathcal{F}_{\mu, L}, \ (x_k)_{k \le N} \in (\mathbf{R}^n)^{N+1}} \|f(x_N) - f_{\star}\|  
 \end{equation}
     \[\text{s.t.} 
     \begin{cases}
-    x_0 \in U_R(x_{\star}) = \{x: \|x-x_{\star}\|_2^2 < R^2\} \\
-    (x_t)_{t \le T} = x_0 + \text{span} \{ (\mathcal{O}^{(f)}_{k})_{k \le N} \}
+    x_0 \in \{x: \|x-x_{\star}\|_2^2 
+    \le R^2\} \\
+    (x_k)_{k \le N} = x_0 + \text{span} \{ (\widetilde{\nabla} f(x_{k})\}_{k \le N} \} \\
+    \|\widetilde{\nabla} f(x) - \nabla f(x)\|_2 \leq \varepsilon\|\nabla f(x)\|_2 \
 \end{cases}\]
 
+Обратим внимание, что эта задача является бесконечномерной задачей оптимизации на  классе функций $\mathcal{F}_{\mu, L}$. Оказывается, однако, что с помощью плодотворных идей интерполяции (\cite{taylor2017smooth}), такую задачу можно свести к конечномерной задаче полуопределенного программирования (semidefinite programming, далее -- SDP). Эта техника называется Performance Estimation Problem (PEP). Используемые солверы - PEPit (\cite{goujaud2022pepit}) и Mosek(\cite{aps2019mosek}).
 Эту бесконечномерную задачу оптимизации на пространстве функций можно решить, используя технику PEP.
 
 \section{Вычислительный эксперимент}
-Материалы по вычислительному эксперименту можно найти по этой ссылке: \href{https://github.com/intsystems/2024-Project-156}{https://github.com/intsystems/2024-Project-156}
+В данной секции сформулирована гипотеза о зависимости сходимости метода NoisyGFOM в зависимости от шума градиента $\varepsilon$. Продемонстрированы результаты численных экспериментов и сформулированы выводы о разумности гипотезы.
+%Материалы по вычислительному эксперименту можно найти по этой ссылке: \href{https://github.com/intsystems/2024-Project-156}{https://github.com/intsystems/2024-Project-156}
 
 \subsection{Проверяемая гипотеза}
 Обычный GFOM (как и многие другие ускоренные методы оптимизации) имеет следующую сходимость (\cite{convex_opt_mipt}):
 \begin{equation} \label{GFOMconverge}
-    \|f(x_N) - f_{\star}\| = O\left(\left(\frac{\sqrt{L} - \sqrt{\mu}}{\sqrt{L} + \sqrt{\mu}}\right)^N\right) 
+    f(x_N) - f(x_{\star}) = O\left(\left(\frac{\sqrt{L} - \sqrt{\mu}}{\sqrt{L} + \sqrt{\mu}}\right)^N\right) 
 \end{equation}
 
-При наличии шума логично предположение, что сходимость будет ухудшаться. Возможно,  при большой относительной погрешности $\varepsilon$ градиентов, сходимость ухудшится до сходимости обычного градиентного спуска (GD):
+При наличии шума логично предположение, что сходимость будет ухудшаться. При большой относительной погрешности $\varepsilon$ градиентов, сходимость ухудшится до сходимости обычного градиентного спуска (GD):
 \begin{equation}\label{GDconverge}
-   \|f(x_N) - f_{\star}\| = O\left(\left(\frac{L - \mu}{L + \mu}\right)^N\right) 
+   f(x_N) - f(x_{\star}) = O\left(\left(\frac{L - \mu}{L + \mu}\right)^N\right) 
 \end{equation}
 
-Сформулируем гипотезу о сходимости метода NoisyGFOM: скорость сходимости метода зависит от соотношения $\left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}$, где $\alpha(\varepsilon)$ - некоторая монотонно возрастающая функция, причем $\alpha|_{\varepsilon = 0} = \frac12$, а $\alpha|_{\varepsilon \rightarrow 1} \rightarrow 1$. 
+Сформулируем гипотезу о сходимости метода NoisyGFOM.
+
+\begin{proposition}
+Скорость сходимости метода зависит от соотношения $\left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}$, где $\alpha(\varepsilon)$ - некоторая монотонно возрастающая функция, причем $\alpha|_{\varepsilon = 0} = \frac12$, а $\alpha|_{\varepsilon \rightarrow 1} \rightarrow 1$. 
+\end{proposition}
+
+
 
 \begin{equation}\label{NoisyGFOMconverge}
-   \|f(x_N) - f_{\star}\| = O\left(\left(\frac{1 - \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}{1 + \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}\right)^N\right) 
+   f(x_N) - f(x_{\star}) = O\left(\left(\frac{1 - \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}{1 + \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}\right)^N\right) 
 \end{equation}
 
 То есть при возрастании относительного шума $\varepsilon$ от $0$ до $1$ сходимость метода ухудшается от сходимости ускоренных методов до сходимости обычного градиентного спуска.
@@ -280,10 +298,10 @@ caption{ Intermediate  Similar Triangle Method (\texttt{ISTM}).}\label{alg_STM_r
 
 При небольших $\frac{\mu}{L}$ гипотеза принимает следующий вид:
 \begin{equation}\label{NoisyGFOMconverge}
-   \|f(x_N) - f_{\star}\| = O\left(\left(1 - 2\left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}\right)^N\right) 
+   f(x_N) - f(x_{\star}) = O\left(\left(1 - 2\left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}\right)^N\right) 
 \end{equation}
 
-Проверим линейную сходимость алгоритма. Для этого построим график (\ref{linear_conv}) $\|f(x_N) - f_{\star}\|(N)$ при фиксированном $\varepsilon$ и раличных $\mu$. Видно, что при всех $\mu$ при больших номерах итераций графики являются прямыми, т.е. сходимость линейная.
+Проверим линейную сходимость алгоритма. Для этого построим график невязки $f(x_N) - f(x_{\star})$ в зависимости от числа итераций $N$ при фиксированном $\varepsilon$ и различных $\mu$. Видно, что при всех $\mu$ при больших номерах итераций графики являются прямыми, т.е. сходимость линейная.
 
 При фиксированном $\varepsilon$ и $\frac{\mu}{L}$ $\log{\|f(x_N) - f_{\star}\| \sim N \cdot k(\varepsilon, \mu)}$, где $k(\varepsilon, \mu) = \log{\left(1 - 2\left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}\right)}\sim \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}$.
 Тогда $\log{k(\varepsilon, \mu)} = \alpha(\varepsilon) \log{\left(\frac{\mu}{L}\right)}$. Из предыдущего графика найдем угловые коэффициенты прямых $k(\varepsilon, \mu)$ для различных $\mu$ (с помощью линейной регрессии). Построим график $k(\mu)$ в лог-лог-масштабе. Убедимся в его линейности. С помощью линейной регрессии определим коэффициент $\alpha(\varepsilon)$. 
@@ -292,14 +310,14 @@ caption{ Intermediate  Similar Triangle Method (\texttt{ISTM}).}\label{alg_STM_r
      \begin{subfigure}[b]{0.45\textwidth}
          \centering
          \includegraphics[width=\textwidth]{linear_convergence.png}
-         \caption{График зависимости невязки $\|f(x_N) - f_{\star}\|$ от номера итерации $N$ при $\varepsilon = 0.5$. Доказывает линейную сходимость.}
+         \caption{График зависимости невязки $(f(x_N) - f_{\star})$ от номера итерации $N$ при $\varepsilon = 0.5$. Демонстрирует линейную сходимость.}
          \label{fig:linear_conv}
      \end{subfigure}
      \hfill
      \begin{subfigure}[b]{0.45\textwidth}
          \centering
          \includegraphics[width=\textwidth]{q_mu_grqph.png}
-         \caption{График зависимости график $k(\mu)$ при $\varepsilon = 0.5$. Доказывает гипотезу о зависимости скорости сходимости только лишь от $\left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}$}
+         \caption{График зависимости график $k(\mu)$ при $\varepsilon = 0.5$. Демонстрирует зависимость скорости сходимости только лишь от $\left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}$}
          \label{fig:three sin x}
      \end{subfigure}
      \hfill
@@ -308,23 +326,24 @@ caption{ Intermediate  Similar Triangle Method (\texttt{ISTM}).}\label{alg_STM_r
 \end{figure}
 
 
-Повторим эксперимент для различных $\varepsilon$ и построим график $\alpha(\varepsilon)$.
-\begin{figure}
+Повторим эксперимент для различных $\varepsilon$ и построим график $\alpha(\varepsilon)$ (\ref{fig:main_res}).
+\begin{figure}[htp]
 \centering
-\includegraphics[width=0.6\textwidth]{degree_of_convergence.png}
-    \caption{График зависимости $g(\varepsilon)$. При нулевом шуме, сходимость как у ускоренных методов (NAG, HB). При больших шумах сходимость как у GD}
+\includegraphics[width=0.5\textwidth]{main_res__of_gfom.png}
+    \caption{График зависимости $\alpha(\varepsilon)$}.
+    \label{fig:main_res}
 \end{figure}
 
 \subsection{Результаты и их обсуждение}
 
-Вычислительные эксперименты подтвердили гипотезу. Скорость сходимости метода NoisyGFOM зависит от шума $\varepsilon$. При увеличении шума скорость сходимости падает от быстрой \ref{GFOMconverge} до свойственной обычному градиентному спуску \ref{GDconverge}. Итак, 
+Вычислительные эксперименты подтвердили гипотезу. Скорость сходимости метода NoisyGFOM зависит от шума $\varepsilon$. При увеличении шума скорость сходимости падает от быстрой \eqref{GFOMconverge} до свойственной обычному градиентному спуску \eqref{GDconverge}. Итак, 
 \begin{equation}\label{NoisyGFOMconverge}
-   \|f(x_N) - f_{\star}\| = O\left(\left(\frac{1 - \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}{1 + \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}\right)^N\right),  \
+   f(x_N) - f_{\star} = O\left(\left(\frac{1 - \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}{1 + \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}\right)^N\right),  \
    \alpha|_{\varepsilon = 0} = \frac12, \ \alpha|_{\varepsilon \rightarrow 1} \rightarrow 1
 \end{equation}
 
 \section{Заключение}
-В данной работе было исследовано влияние зашумленного градиента \ref{inexact_grad} на жадный метод оптимизации первого порядка NoisyGFOM. Так, при появлении шума в градиентах метод сохраняет свою линейную сходимость при $\varepsilon \in [0,1]$, уменьшая скорость сходимости с увеличением шума. При шуме $\varepsilon \approx 1$ скорость сходимости NoisyGFOM совпадает со скоростью сходимости градиентного спуска \ref{GDconverge}.
+В данной работе было исследовано влияние зашумленного градиента \eqref{inexact_grad} на жадный метод оптимизации первого порядка NoisyGFOM. Так, при появлении шума в градиентах метод сохраняет свою линейную сходимость при $\varepsilon \in [0,1]$, уменьшая скорость сходимости с увеличением шума. При шуме $\varepsilon \approx 1$ скорость сходимости NoisyGFOM совпадает со скоростью сходимости градиентного спуска \eqref{GDconverge}.
 В наши дальнейшие планы входит теоретическое обоснование полученных экспериментально результатов.
 
 
