@@ -25,10 +25,3 @@ Abstract
 ========
 
 Работа посвящена жадным методам гладкой выпуклой оптимизации первого порядка с градиентами, известными лишь с некоторой относительной погрешностью. С помощью численной техники PEP была получена эмпирическая гипотеза о влиянии этой погрешности на скорость сходимости методов. 
-
-
-
-Software modules developed as part of the study
-======================================================
-1. A python package *mylib* with all implementation `here <https://github.com/intsystems/ProjectTemplate/tree/master/src>`_.
-2. A code with all experiment visualisation `here <https://github.comintsystems/ProjectTemplate/blob/master/code/main.ipynb>`_. Can use `colab <http://colab.research.google.com/github/intsystems/ProjectTemplate/blob/master/code/main.ipynb>`_.
