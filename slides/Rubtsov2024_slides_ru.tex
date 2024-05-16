@@ -16,9 +16,11 @@
 \usepackage{hhline}%tables
 % Your figures are here:
 \graphicspath{ {fig/} {../figures/} }
-
+\usepackage{amsmath}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
 %----------------------------------------------------------------------------------------------------------
-\title[\hbox to 56mm{Оптимальные методы оптимизации первого порядка с относительным шумом}]{Оптимальные методы оптимизации первого порядка с относительным шумом}
+\title[\hbox to 56mm{Жадный метод оптимизации первого порядка с относительным шумом}]{Жадный метод оптимизации первого порядка с относительным шумом}
 \author[Д.\,Н. Рубцов]{Денис Николаевич Рубцов}
 \institute{Московский физико-технический институт}
 \date{\footnotesize
@@ -37,152 +39,112 @@
 \begin{frame}{Цель исследования}
      \begin{block}{Цели}
      \begin{itemize}
-         \item разработать оптимальные алгоритмы оптимизации первого порядка, в которых градиенты известны лишь с некоторой относительной погрешностью
-         \item исследовать скорость сходимости этих алгоритмов
+         \item разработать жадный метод оптимизации первого порядка, в котором градиенты известны лишь с некоторой относительной погрешностью
+         \item исследовать скорость сходимости этого метода с помощью численной техники PEP
      \end{itemize}
      \end{block}
 
  \end{frame}
+
+ \begin{frame}{Литература}
+
+\begin{itemize}
+ \item Baptiste Goujaud, Aymeric Dieuleveut, and Adrien Taylor. On fundamental proof structures in first-order
+optimization. In 2023 62nd IEEE Conference on Decision and Control (CDC), pages 3023–3030. IEEE,
+2023.
+ \item Adrien B Taylor. Convex interpolation and performance estimation of first-order methods for convex optimization. PhD thesis, Catholic University of Louvain, Louvain-la-Neuve, Belgium, 2017
+ \item Adrien B Taylor, Julien M Hendrickx, and Fran ̧cois Glineur. Smooth strongly convex interpolation and exact worst-case performance of first-order methods. Mathematical Programming, 161:307–345, 2017.
+\end{itemize}
+
+ \end{frame}
 %-----------------------------------------------------------------------------------------------------
-\begin{frame}{Оптимизация первого порядка}
+\begin{frame}{NoisyGFOM}
 \begin{columns}[c]
-\column{0.45\textwidth}
-\begin{block}{Решается задача}
-\[x_{\star} = \arg \min_{x \in \mathbf{R}^d} f(x)\]
-\[f(x) \in \mathcal{F}\]
-\end{block}
-\begin{block}{Анализ наихудшего случая}
-\[ \max_{f \in \mathcal{F}, \ (x_t)_{t \le T} \in (\mathbf{R}^d)^{T+1}} P(f, (x_t)_{t \le T})\]
-\[\text{s.t.} 
-\begin{cases}
-x_0 \in \mathcal{N}(x_{\star}) \\
-(x_t)_{t \le T} = \mathcal{A}(f, T, x_0)
-\end{cases}
-\]
-\end{block}
+\column{0.4\textwidth}
+\[x_{\star} = \arg \min_{x \in \mathbb{R}^n} f(x)\]
+\[f(x) \in \mathcal{F}_{\mu, L}\]
+\column{0.6\textwidth}
+\[\|\widetilde{\nabla} f(x) - \nabla f(x)\|_2 \leq \varepsilon \|\nabla f(x)\|_2\]
+\[\varepsilon \in [0, 1]\]
+\end{columns}
+
+
+
+\begin{table}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+  \begin{tabular}{||p{7 cm} | p{3.1 cm}||} 
+ \hline
+ Итерация метода & $f(x_N) - f(x_{\star}) = $  \\ 
+ \hline
+ \multicolumn{2}{||c||}{Gradient descent (GD)} \\
+ \hline
+$x_{k+1}  = x_k - \alpha \nabla f(x_k)$ & $O\left(\left(\frac{1 - \frac{\mu}{L}}{1 + \frac{\mu}{L}}\right)^N\right)$  \\
+ \hline
+\multicolumn{2}{||c||}{Greedy first-order method (GFOM)} \\
+ \hline
+$x_k = \argmin_{x \in \mathbb{R}^n}\{f(x): x \in x_0 + \text{span}\{\nabla f(x_0), ..., \nabla f(x_{k-1})\}\}$ & $O\left(\left(\frac{1 - \sqrt{\frac{\mu}{L}}}{1 + \sqrt{\frac{\mu}{L}}}\right)^N\right)$ \\
+ \hline
+\multicolumn{2}{||c||}{Noisy greedy first-order method (\textbf{NoisyGFOM})} \\
+ \hline
+ $x_k = \argmin_{x \in \mathbb{R}^n}\{f(x): x \in x_0 + \text{span}\{\widetilde{\nabla} f(x_0), ..., \widetilde{\nabla} f(x_{k-1})\}\}$ & \onslide<2->{$O\left(\left(\frac{1 - \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}{1 + \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}\right)^N\right)$} \\
+ \hline
+ \end{tabular}}
+ 
+\end{table}
+
 %\begin{block}{Неточный градиент}
 %\[\mathcal{O}^{(f)}(x) = \widetilde{\nabla} f(x)\]
 %\end{block}
-\column{0.55\textwidth}
-\begin{table}[h!]
-\centering
- \begin{tabular}{||p{1.8 cm} p{3 cm}||} 
- \hline
 
- $\mathcal{F}$ & некоторый класс функций  \\ 
- \hline
- $\mathcal{F}_{\mu, L}$ & класс $\mu$-сильно выпуклых $L$-гладких функций  \\ 
- \hline
- $f$ & исследуемая функция  \\
- \hline
- $x_{\star}$ & точка минимума  \\
- \hline
- $x_0$ & начальная точка  \\
- \hline
- $\mathcal{O}^{(f)}$ & оракул  \\ 
- \hline
- $\mathcal{A}$ & алгоритм  \\
- \hline
- $(x_t)_{t \le T}$ & последовательность точек  \\
- \hline
- $T$ & число итераций  \\ 
- \hline
- $P(f, (x_t)_{t \le T})$ & метрика точности  \\[1ex] 
- \hline
- \end{tabular}
-\end{table}
-\end{columns}
+
 \end{frame}
 
 %-----------------------------------------------------------------------------------------------------
-\begin{frame}{Постановка задачи}
-\begin{columns}[c]
-\column{0.5\textwidth}
-\begin{block}{Решается задача}
-\[x_{\star} = \arg \min_{x \in \mathbf{R}^d} f(x)\]
-\[f(x) \in \mathcal{F}_{\mu, L}\]
-\end{block}
-\begin{block}{Жадный алгоритм}
-\[ \max_{f \in \mathcal{F}_{\mu, L}, \ (x_t)_{t \le T} \in (\mathbf{R}^d)^{T+1}} f(x_t) - f_{\star}\]
-\[\text{s.t.} 
-\begin{cases}
-x_0 \in U_R(x_{\star}) \\
-(x_t)_{t \le T} = \text{span} \{ x_t, (\mathcal{O}^{(f)}_{t})_{t \le T} \}
-\end{cases}
-\]
+\begin{frame}{Скорость сходимости NoisyGFOM}
+\begin{block}{Анализ наихудшего случая}
+\[\max_{f \in \mathcal{F}_{\mu, L}, \ (x_k)_{k \le N} \in (\mathbf{R}^n)^{N+1}} \|f(x_N) - f_{\star}\|\]
+
+    \[\text{s.t.} 
+    \begin{cases}
+    x_0 \in \{x: \|x-x_{\star}\|_2^2 
+    \le R^2\} \\
+    (x_k)_{k \le N} = x_0 + \text{span} \{ (\widetilde{\nabla} f(x_{k})\}_{k \le N} \} \\
+    \|\widetilde{\nabla} f(x) - \nabla f(x)\|_2 \leq \varepsilon\|\nabla f(x)\|_2 \
+\end{cases}\]
 \end{block}
 
-\column{0.5\textwidth}
-\begin{block}{Неточный градиент}
-\[\mathcal{O}^{(f)}(x) = \widetilde{\nabla} f(x)\]
-\[\|\widetilde{\nabla} f(x) - \nabla f(x)\|_2 \leq \hat{\varepsilon} \|\nabla f(x)\|_2 \\ \quad \forall \hat{\varepsilon} \in [0, 1].\]
+\begin{block}{PEP}
+    Бесконечномерная задача оптимизации с помощью плодотворных идей интерполяции может быть сведена к конечномерной задаче полуопределенного программирования. Такая техника называется PEP. Используемый солвер - PEPit.
 \end{block}
 
-\begin{block}{Гипотеза}
-$f(x_{t}) - f(x_{\star}) \le q^t (f(x_0) - f(x_{\star})$
-\begin{table}[h!]
-\centering
- \begin{tabular}{||c | c||} 
- \hline
- GD & NAG, HB\\ 
- \hline
-  $q \sim \frac{\mu}{L}$ & $q \sim \sqrt{\frac{\mu}{L}}$ \\ 
- \hline
- \end{tabular}
-\end{table}
-\begin{center}
- $q \sim (\frac{\mu}{L})^{g(\varepsilon)}$   
-\end{center}
-\end{block}
-\end{columns}
 \end{frame}
 
 %-----------------------------------------------------------------------------------------------------
-\begin{frame}{Поясняющие картинки}
-\begin{columns}[c]
-\column{0.5\textwidth}
-\begin{figure}
-\includegraphics[width=1.0\textwidth]{Interpolation.png}
-    \caption{Плодотворные идеи интерполяции в PEP. Можно ли по значениям точек, значениям точек и производным в этих точках восстановить функцию нужного класса?}
-\end{figure}
-\column{0.5\textwidth}
-\begin{figure}
-\includegraphics[width=1.0\textwidth]{InterpolateCvx.png}
-    \caption{Плодотворные идеи интерполяции в PEP. Ответ - да. Можно брать максимум значений красных пунктирных линий (поточечный максимум)}
-\end{figure}
-\end{columns}
-\end{frame}
+
 %-----------------------------------------------------------------------------------------------------
 \begin{frame}{Вычислительные эксперименты}
-\begin{center}
-$\tau_t = f(x_{t}) - f(x_{\star}) \le q^t (f(x_0) - f(x_{\star}) \Rightarrow \log{\tau_t} \sim t$ \\
 
- $q \sim (\frac{\mu}{L})^{g(\varepsilon)}$ \\ 
- 
- $\log{q} \sim g(\varepsilon) \log{\mu}$
-\end{center}
+При фиксированном $\varepsilon$ и $\frac{\mu}{L}$ $\log{|f(x_N) - f_{\star}| \sim N \cdot k(\varepsilon, \mu)}$, где $k(\varepsilon, \mu) = \log{\left(1 - 2\left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}\right)}\sim \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}$.
+Тогда $\log{k(\varepsilon, \mu)} = \alpha(\varepsilon) \log{\left(\frac{\mu}{L}\right)}$
 
-\begin{columns}[c]
-\column{0.5\textwidth}
+
 \begin{figure}
-\includegraphics[width=1.0\textwidth]{linear_convergence.png}
-    \caption{График зависимости лонарифма невязки от номера итерации $\log{\tau_t} \sim t$ при $\varepsilon = 0.5$. Доказывает линейную сходимость.}
+\caption{График зависимости логарифма невязки от номера итерации $\log{(f(x_N) - f(x_{\star}))} \sim N$ при $\varepsilon = 0.5$.}
+\includegraphics[width=0.5\textwidth]{linear_convergence.png}
 \end{figure}
-\column{0.5\textwidth}
-\begin{figure}
-\includegraphics[width=1.0\textwidth]{q_mu_grqph.png}
-    \caption{График зависимости $q(\mu)$ при $\varepsilon = 0.5$ в лог-лог-масштабе. Показывает, что степень сходимости зависит лишь от шума}
-\end{figure}
-\end{columns}
+
 \end{frame}
 %-----------------------------------------------------------------------------------------------------
-\begin{frame}{Основной результат вычислительных экспериментов}
+\begin{frame}{Результат проверки гипотезы}
 \begin{center}
- $q \sim (\frac{\mu}{L})^{g(\varepsilon)}$ \\ 
+
+ $f(x_N) - f(x_{\star}) = O\left(\left(\frac{1 - \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}{1 + \left(\frac{\mu}{L}\right)^{\alpha(\varepsilon)}}\right)^N\right),  \
+   \alpha|_{\varepsilon = 0} = \frac12, \ \alpha|_{\varepsilon = 1} = 1$ \\ 
 \end{center}
 \begin{figure}
-\includegraphics[width=0.6\textwidth]{degree_of_convergence.png}
-    \caption{График зависимости $g(\varepsilon)$. При нулевом шуме, сходимость как у ускоренных методов (NAG, HB). При больших шумах сходимость как у GD}
+\caption{График зависимости $\alpha(\varepsilon)$. При нулевом шуме, сходимость как у ускоренных методов (NAG, HB). При больших шумах сходимость как у GD}
+\includegraphics[width=0.6\textwidth]{main_res__of_gfom.png}
 \end{figure}
 \end{frame}
 
@@ -199,30 +161,19 @@ $\tau_t = f(x_{t}) - f(x_{\star}) \le q^t (f(x_0) - f(x_{\star}) \Rightarrow \lo
 \begin{frame}{Заключение}
      \begin{block}{Результаты}
      \begin{itemize}
-         \item предложена гипотеза сходимости оптимального (жадного) алгоритма оптимизации первого порядка в случае, когда градиенты известны лишь с некоторой погрешностью
-         \item гипотеза доказана численно
+         \item предложена гипотеза сходимости жадного алгоритма оптимизации первого порядка в случае, когда градиенты известны лишь с некоторой погрешностью
+         \item численные результаты не противоречат гипотезе
      \end{itemize}
      \end{block}
      \begin{block}{Планы}
      \begin{itemize}
-         \item теоретическое доказательсто полученных экспериментальных результатов
+         \item теоретическое доказательство полученных экспериментальных результатов
      \end{itemize}
      \end{block}
  \end{frame}
 %----------------------------------------------------------------------------------------------------------
 %-----------------------------------
 
-\begin{frame}{Литература}
 
-\begin{itemize}
- \item Baptiste Goujaud, Aymeric Dieuleveut, and Adrien Taylor. On fundamental proof structures in first-order
-optimization. In 2023 62nd IEEE Conference on Decision and Control (CDC), pages 3023–3030. IEEE,
-2023.
- \item Nikita Kornilov, Eduard Gorbunov, Mohammad Alkousa, Fedor Stonyakin, Pavel Dvurechensky, and Alexander Gasnikov. Intermediate gradient methods with relative inexactness. arXiv preprint arXiv:2310.00506, 2023
- \item Adrien B Taylor. Convex interpolation and performance estimation of first-order methods for convex optimization. PhD thesis, Catholic University of Louvain, Louvain-la-Neuve, Belgium, 2017
- \item Adrien B Taylor, Julien M Hendrickx, and Fran ̧cois Glineur. Smooth strongly convex interpolation and exact worst-case performance of first-order methods. Mathematical Programming, 161:307–345, 2017.
-\end{itemize}
-
-\end{frame}
 
 \end{document} 
